@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 public class Price {
@@ -14,8 +16,7 @@ public class Price {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long timestamp;
+    private LocalDateTime dateTime;
     private String symbol;
     private Double price;
-
 }

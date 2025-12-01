@@ -12,11 +12,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/normalized-range").permitAll()
+                        .requestMatchers(
+                                "/cryptos/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
-                        .defaultSuccessUrl("/", true) );
+                        .defaultSuccessUrl("/", true)
+                );
         return http.build();
     }
 }

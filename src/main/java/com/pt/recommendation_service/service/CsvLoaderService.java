@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Component
 public class CsvLoaderService implements ApplicationRunner {
@@ -28,10 +31,14 @@ public class CsvLoaderService implements ApplicationRunner {
                 String line;
                 boolean first = true;
                 while ((line = br.readLine()) != null) {
-                    if (first) { first = false; continue; } // skip header
+                    if (first) { first = false; continue; }
                     String[] parts = line.split(",");
                     Price record = new Price();
-                    record.setTimestamp(Long.parseLong(parts[0]));
+
+                    long millis = Long.parseLong(parts[0]);
+                    LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+                    record.setDateTime(dateTime);
+
                     record.setSymbol(parts[1]);
                     record.setPrice(Double.parseDouble(parts[2]));
                     repository.save(record);
