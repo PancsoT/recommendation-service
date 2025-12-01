@@ -1,0 +1,42 @@
+package com.pt.recommendation_service.service;
+
+import com.pt.recommendation_service.entity.Price;
+import com.pt.recommendation_service.repository.PriceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.stereotype.Component;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+@Component
+public class CsvLoaderService implements ApplicationRunner {
+
+    @Autowired
+    private PriceRepository repository;
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        Resource[] resources = resolver.getResources("classpath:csv/*.csv");
+
+        for (Resource resource : resources) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+                String line;
+                boolean first = true;
+                while ((line = br.readLine()) != null) {
+                    if (first) { first = false; continue; } // skip header
+                    String[] parts = line.split(",");
+                    Price record = new Price();
+                    record.setTimestamp(Long.parseLong(parts[0]));
+                    record.setSymbol(parts[1]);
+                    record.setPrice(Double.parseDouble(parts[2]));
+                    repository.save(record);
+                }
+            }
+        }
+    }
+}
