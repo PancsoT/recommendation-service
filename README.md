@@ -130,3 +130,7 @@ docker run -p 8080:8080 recommendation-service
 
 ## Shortcuts
 - Currently the service is filtering through all the dates which is loaded from the CSV. It is not configurable whether the client wants to get 1 month or 6 months of data.
+- I initially created a ControllerAdvice to handle the Exceptions globally. The Swagger documentation was not available anymore due to that. Couldn't find the root cause, so the RestController was extended with the ExceptionHandlers instead.
+- While the integration tests cover the main use cases, it would be beneficial to provide more detailed documentation on how to test the endpoints—including example requests and responses—and to document the possible exceptions as well.
+- Using of records and possibly virtual threads might also be considered.
+- The current version creates a database at startup. This can also be reconsidered whether it should be in-memory instead of file.
