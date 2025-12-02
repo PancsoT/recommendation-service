@@ -17,6 +17,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+/**
+ * Service that loads cryptocurrency price data from CSV files at application startup.
+ * <p>
+ * Scans the {@code resources/csv} directory for CSV files, parses each line, validates the symbol,
+ * and saves valid price records to the database. Logs warnings and errors for unsupported symbols
+ * and parsing failures, but continues processing remaining files and lines.
+ * </p>
+ */
 @Component
 public class CsvLoaderService implements ApplicationRunner {
 
@@ -30,6 +38,18 @@ public class CsvLoaderService implements ApplicationRunner {
         this.cryptoValidator = cryptoValidator;
     }
 
+    /**
+     * Loads and processes all CSV files from the {@code resources/csv} directory.
+     * <ul>
+     *     <li>Logs a warning if no CSV files are found.</li>
+     *     <li>For each file, parses each line (skipping the header), validates the symbol,
+     *         and saves valid price records to the database.</li>
+     *     <li>Logs warnings for unsupported symbols and errors for parsing failures, but continues processing.</li>
+     * </ul>
+     *
+     * @param args application arguments (not used)
+     * @throws Exception if an unrecoverable error occurs during file processing
+     */
     @Override
     public void run(ApplicationArguments args) throws Exception {
         Logger logger = LoggerFactory.getLogger(CsvLoaderService.class);

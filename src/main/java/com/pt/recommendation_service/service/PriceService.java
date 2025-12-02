@@ -14,17 +14,35 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Service class for cryptocurrency price operations and statistics.
+ * <p>
+ * Provides methods to calculate normalized ranges, retrieve statistics for a symbol,
+ * and find the cryptocurrency with the highest normalized range for a specific date.
+ * </p>
+ */
 @Service
 public class PriceService {
 
     private final PriceRepository priceRepository;
     private final CryptoValidator cryptoValidator;
 
+    /**
+     * Constructs a new {@code PriceService} with the required dependencies.
+     *
+     * @param priceRepository the repository for accessing price data
+     * @param cryptoValidator the validator for supported cryptocurrency symbols
+     */
     public PriceService(PriceRepository priceRepository, CryptoValidator cryptoValidator) {
         this.priceRepository = priceRepository;
         this.cryptoValidator = cryptoValidator;
     }
 
+    /**
+     * Returns a descending sorted list of all cryptocurrencies by normalized range ((max-min)/min).
+     *
+     * @return list of {@link CryptoNormalizedRangeDto} objects
+     */
     public List<CryptoNormalizedRangeDto> getNormalizedRangesDesc() {
         List<Price> allPrices = priceRepository.findAll();
 
@@ -38,6 +56,13 @@ public class PriceService {
         return normalizedRangeDtos;
     }
 
+    /**
+     * Returns statistics (oldest, newest, minimum, and maximum price) for the specified cryptocurrency symbol.
+     * Throws an exception if the symbol is not supported.
+     *
+     * @param symbol the cryptocurrency symbol
+     * @return {@link CryptoStatsDto} containing the statistics
+     */
     public CryptoStatsDto getStatsForSymbol(String symbol) {
         SupportedCryptos crypto = cryptoValidator.validateSymbol(symbol);
         Double oldest = priceRepository.findFirstBySymbolOrderByDateTimeAsc(symbol).getPrice();
@@ -48,6 +73,16 @@ public class PriceService {
         return new CryptoStatsDto(crypto, oldest, newest, min, max);
     }
 
+    /**
+     * Returns the cryptocurrency with the highest normalized range ((max-min)/min) for the given date.
+     * Throws an exception if the date format is invalid or if no price data is found for the date.
+     *
+     * @param dateStr the date in yyyy-MM-dd format
+     * @return {@link CryptoNormalizedRangeDto} for the highest normalized range
+     * @throws InvalidDateFormatException   if
+    the date format is invalid
+     * @throws NoPriceFoundForDateException if no price data is found for the date
+     */
     public CryptoNormalizedRangeDto getHighestNormalizedRangeForDate(String dateStr) {
         LocalDate date;
         try {
@@ -75,6 +110,12 @@ public class PriceService {
                 .orElse(null);
     }
 
+    /**
+     * Helper method to calculate normalized range DTOs for each symbol in the grouped price data.
+     *
+     * @param grouped a map of symbol to list of prices
+     * @return list of {@link CryptoNormalizedRangeDto} objects
+     */
     private List<CryptoNormalizedRangeDto> getCryptoNormalizedRangeDtos(Map<String, List<Price>> grouped) {
         List<CryptoNormalizedRangeDto> result = new ArrayList<>();
         for (Map.Entry<String, List<Price>> entry : grouped.entrySet()) {

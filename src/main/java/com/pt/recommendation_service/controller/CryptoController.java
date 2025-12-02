@@ -14,6 +14,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST controller for cryptocurrency statistics and normalized range endpoints.
+ * <p>
+ * Provides endpoints to retrieve:
+ * <ul>
+ *     <li>Descending sorted list of all cryptocurrencies by normalized range</li>
+ *     <li>Statistics (oldest, newest, min, max price) for a specific cryptocurrency</li>
+ *     <li>The cryptocurrency with the highest normalized range for a specific day</li>
+ * </ul>
+ * </p>
+ */
 @RestController
 @RequestMapping("/cryptos")
 @Tag(name = "Cryptocurrency Endpoints", description = "Endpoints for retrieving cryptocurrency statistics and normalized ranges")
@@ -21,10 +32,20 @@ public class CryptoController {
 
     private final PriceService priceService;
 
+    /**
+     * Constructs a new {@code CryptoController} with the given {@link PriceService}.
+     *
+     * @param priceService the service for cryptocurrency price operations
+     */
     public CryptoController(PriceService priceService) {
         this.priceService = priceService;
     }
 
+    /**
+     * Returns a descending sorted list of all cryptocurrencies by normalized range ((max-min)/min).
+     *
+     * @return list of {@link CryptoNormalizedRangeDto} objects
+     */
     @GetMapping("/normalized-range")
     @Operation(
             summary = "Get descending sorted list of all cryptocurrencies by normalized range",
@@ -34,6 +55,12 @@ public class CryptoController {
         return priceService.getNormalizedRangesDesc();
     }
 
+    /**
+     * Returns statistics (oldest, newest, minimum, and maximum price) for the specified cryptocurrency symbol.
+     *
+     * @param symbol the cryptocurrency symbol (e.g., BTC, ETH)
+     * @return {@link CryptoStatsDto} containing the statistics
+     */
     @GetMapping("/{symbol}/stats")
     @Operation(
             summary = "Get statistics for a specific cryptocurrency",
@@ -49,6 +76,12 @@ public class CryptoController {
         return priceService.getStatsForSymbol(symbol);
     }
 
+    /**
+     * Returns the cryptocurrency with the highest normalized range ((max-min)/min) for the given date.
+     *
+     * @param date the date in yyyy-MM-dd format
+     * @return {@link CryptoNormalizedRangeDto} for the highest normalized range
+     */
     @GetMapping("/normalized-range/highest")
     @Operation(
             summary = "Get the cryptocurrency with the highest normalized range for a specific day",
