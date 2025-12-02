@@ -2,6 +2,8 @@ package com.pt.recommendation_service.service;
 
 import com.pt.recommendation_service.entity.Price;
 import com.pt.recommendation_service.repository.PriceRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -27,25 +29,39 @@ public class CsvLoaderService implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        Logger logger = LoggerFactory.getLogger(CsvLoaderService.class);
         Resource[] resources = resolver.getResources("classpath:csv/*.csv");
 
+        if (resources.length == 0) {
+            logger.warn("No CSV files found in resources/csv directory.");
+        }
+
         for (Resource resource : resources) {
+            String fileName = resource.getFilename();
             try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
                 String line;
                 boolean first = true;
+                int lineNumber = 0;
                 while ((line = br.readLine()) != null) {
+                    lineNumber++;
                     if (first) { first = false; continue; }
-                    String[] parts = line.split(",");
-                    Price record = new Price();
+                    try {
+                        String[] parts = line.split(",");
+                        Price record = new Price();
 
-                    long millis = Long.parseLong(parts[0]);
-                    LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
-                    record.setDateTime(dateTime);
+                        long millis = Long.parseLong(parts[0]);
+                        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+                        record.setDateTime(dateTime);
 
-                    record.setSymbol(parts[1]);
-                    record.setPrice(Double.parseDouble(parts[2]));
-                    repository.save(record);
+                        record.setSymbol(parts[1]);
+                        record.setPrice(Double.parseDouble(parts[2]));
+                        repository.save(record);
+                    } catch (Exception e) {
+                        logger.error("Failed to parse line {} in file '{}': '{}'. Error: {}", lineNumber, fileName, line, e.getMessage());
+                    }
                 }
+            } catch (Exception e) {
+                logger.error("Failed to process file '{}'. Error: {}", fileName, e.getMessage());
             }
         }
     }

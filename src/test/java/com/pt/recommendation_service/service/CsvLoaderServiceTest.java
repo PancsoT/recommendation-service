@@ -15,8 +15,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,35 +39,79 @@ class CsvLoaderServiceTest {
 
     @Test
     void run_readsCsvAndSavesPrices() throws Exception {
-        // Prepare a fake CSV file as a Resource
-        String csvContent = "timestamp,symbol,price\n" +
-                "1640995200000,BTC,42000.0\n" +
-                "1640998800000,ETH,3200.0\n";
+        String csvContent = """
+                timestamp,symbol,price
+                1640995200000,BTC,42000.0
+                1640998800000,ETH,3200.0
+                """;
         InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
         Resource resource = mock(Resource.class);
         when(resource.getInputStream()).thenReturn(inputStream);
 
-        // Mock the resolver to return our fake resource
         when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
 
-        // Run the loader
         csvLoaderService.run(mock(ApplicationArguments.class));
 
-        // Capture the saved Price entities
         ArgumentCaptor<Price> captor = ArgumentCaptor.forClass(Price.class);
         verify(priceRepository, times(2)).save(captor.capture());
         List<Price> savedPrices = captor.getAllValues();
 
-        // Assert the first record
-        Price first = savedPrices.get(0);
+        Price first = savedPrices.getFirst();
         assertEquals("BTC", first.getSymbol());
         assertEquals(42000.0, first.getPrice());
         assertEquals(LocalDateTime.of(2022, 1, 1, 0, 0), first.getDateTime());
 
-        // Assert the second record
         Price second = savedPrices.get(1);
         assertEquals("ETH", second.getSymbol());
         assertEquals(3200.0, second.getPrice());
         assertEquals(LocalDateTime.of(2022, 1, 1, 1, 0), second.getDateTime());
+    }
+
+    @Test
+    void run_doesNotThrowExceptionIfNoCsvFilesFound() throws Exception {
+        PriceRepository priceRepository = mock(PriceRepository.class);
+        PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+
+        when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[0]);
+
+        assertDoesNotThrow(() -> service.run(mock(ApplicationArguments.class)));
+    }
+
+    @Test
+    void run_doesNotThrowExceptionOnMalformedLine() throws Exception {
+        PriceRepository priceRepository = mock(PriceRepository.class);
+        PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+
+        String csvContent = "timestamp,symbol,price\n" +
+                "1640995200000,BTC,42000.0\n" +
+                "1640998800000,ETH,not_a_number\n" +
+                "1640999000000,ETH,3200.0\n";
+        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
+        Resource resource = mock(Resource.class);
+        when(resource.getInputStream()).thenReturn(inputStream);
+        when(resource.getFilename()).thenReturn("test.csv");
+        when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
+
+        assertDoesNotThrow(() -> service.run(mock(ApplicationArguments.class)));
+
+        verify(priceRepository, times(2)).save(any(Price.class));
+    }
+
+    @Test
+    void run_doesNotThrowExceptionOnFileProcessingError() throws Exception {
+        PriceRepository priceRepository = mock(PriceRepository.class);
+        PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+
+        Resource resource = mock(Resource.class);
+        when(resource.getInputStream()).thenThrow(new RuntimeException("File read error"));
+        when(resource.getFilename()).thenReturn("broken.csv");
+        when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
+
+        assertDoesNotThrow(() -> service.run(mock(ApplicationArguments.class)));
+
+        verify(priceRepository, never()).save(any(Price.class));
     }
 }

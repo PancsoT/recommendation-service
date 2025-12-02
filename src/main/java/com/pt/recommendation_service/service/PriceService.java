@@ -3,15 +3,15 @@ package com.pt.recommendation_service.service;
 import com.pt.recommendation_service.dto.CryptoNormalizedRangeDto;
 import com.pt.recommendation_service.dto.CryptoStatsDto;
 import com.pt.recommendation_service.entity.Price;
+import com.pt.recommendation_service.enums.SupportedCryptos;
+import com.pt.recommendation_service.exception.InvalidDateFormatException;
+import com.pt.recommendation_service.exception.NoPriceFoundForDateException;
+import com.pt.recommendation_service.exception.UnsupportedCryptoException;
 import com.pt.recommendation_service.repository.PriceRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.OptionalDouble;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,20 +37,37 @@ public class PriceService {
     }
 
     public CryptoStatsDto getStatsForSymbol(String symbol) {
+        SupportedCryptos crypto = validateSymbol(symbol);
         Double oldest = priceRepository.findFirstBySymbolOrderByDateTimeAsc(symbol).getPrice();
         Double newest = priceRepository.findFirstBySymbolOrderByDateTimeDesc(symbol).getPrice();
         Double min = priceRepository.findFirstBySymbolOrderByPriceAsc(symbol).getPrice();
         Double max = priceRepository.findFirstBySymbolOrderByPriceDesc(symbol).getPrice();
 
-        return new CryptoStatsDto(symbol, oldest, newest, min, max);
+        return new CryptoStatsDto(crypto, oldest, newest, min, max);
+    }
+
+    private SupportedCryptos validateSymbol(String symbol) {
+        return Arrays.stream(SupportedCryptos.values())
+                .filter(s -> s.name().equalsIgnoreCase(symbol))
+                .findFirst()
+                .orElseThrow(() -> new UnsupportedCryptoException(symbol));
     }
 
     public CryptoNormalizedRangeDto getHighestNormalizedRangeForDate(String dateStr) {
-        LocalDate date = LocalDate.parse(dateStr);
+        LocalDate date;
+        try {
+            date = LocalDate.parse(dateStr);
+        } catch (Exception e) {
+            throw new InvalidDateFormatException("Invalid date format: " + dateStr + ". Expected format: yyyy-MM-dd");
+        }
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
         List<Price> pricesInRange = priceRepository.findByDateTimeGreaterThanEqualAndDateTimeLessThan(start, end);
+
+        if (pricesInRange.isEmpty()) {
+            throw new NoPriceFoundForDateException(dateStr);
+        }
 
         Map<String, List<Price>> grouped = pricesInRange.stream()
                 .collect(Collectors.groupingBy(Price::getSymbol));

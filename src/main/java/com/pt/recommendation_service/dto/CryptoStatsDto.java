@@ -1,5 +1,6 @@
 package com.pt.recommendation_service.dto;
 
+import com.pt.recommendation_service.enums.SupportedCryptos;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,8 +9,8 @@ import lombok.Data;
 @AllArgsConstructor
 public class CryptoStatsDto {
 
-    @Schema(description = "Cryptocurrency symbol, e.g., BTC, ETH", example = "BTC")
-    private String symbol;
+    @Schema(description = "Cryptocurrency symbol", example = "BTC")
+    private SupportedCryptos symbol;
 
     @Schema(description = "Oldest price value", example = "11000.0")
     private Double oldest;

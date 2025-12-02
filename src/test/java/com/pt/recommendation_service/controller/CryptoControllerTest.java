@@ -2,6 +2,7 @@ package com.pt.recommendation_service.controller;
 
 import com.pt.recommendation_service.dto.CryptoNormalizedRangeDto;
 import com.pt.recommendation_service.dto.CryptoStatsDto;
+import com.pt.recommendation_service.enums.SupportedCryptos;
 import com.pt.recommendation_service.service.PriceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ class CryptoControllerTest {
 
     @Test
     void getStats_returnsStatsFromService() {
-        CryptoStatsDto expected = new CryptoStatsDto("BTC", 21000.0, 23000.0, 20000.0, 25000.0);
+        CryptoStatsDto expected = new CryptoStatsDto(SupportedCryptos.BTC, 21000.0, 23000.0, 20000.0, 25000.0);
         when(priceService.getStatsForSymbol("BTC")).thenReturn(expected);
 
         CryptoStatsDto result = controller.getStats("BTC");
