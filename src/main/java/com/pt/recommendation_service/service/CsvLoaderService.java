@@ -2,7 +2,6 @@ package com.pt.recommendation_service.service;
 
 import com.pt.recommendation_service.entity.Price;
 import com.pt.recommendation_service.repository.PriceRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -18,12 +17,16 @@ import java.time.ZoneOffset;
 @Component
 public class CsvLoaderService implements ApplicationRunner {
 
-    @Autowired
-    private PriceRepository repository;
+    private final PriceRepository repository;
+    private final PathMatchingResourcePatternResolver resolver;
+
+    public CsvLoaderService(PriceRepository repository, PathMatchingResourcePatternResolver resolver) {
+        this.repository = repository;
+        this.resolver = resolver;
+    }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         Resource[] resources = resolver.getResources("classpath:csv/*.csv");
 
         for (Resource resource : resources) {
