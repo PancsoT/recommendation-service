@@ -6,8 +6,8 @@ import com.pt.recommendation_service.entity.Price;
 import com.pt.recommendation_service.enums.SupportedCryptos;
 import com.pt.recommendation_service.exception.InvalidDateFormatException;
 import com.pt.recommendation_service.exception.NoPriceFoundForDateException;
-import com.pt.recommendation_service.exception.UnsupportedCryptoException;
 import com.pt.recommendation_service.repository.PriceRepository;
+import com.pt.recommendation_service.validator.CryptoValidator;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,9 +18,11 @@ import java.util.stream.Collectors;
 public class PriceService {
 
     private final PriceRepository priceRepository;
+    private final CryptoValidator cryptoValidator;
 
-    public PriceService(PriceRepository priceRepository) {
+    public PriceService(PriceRepository priceRepository, CryptoValidator cryptoValidator) {
         this.priceRepository = priceRepository;
+        this.cryptoValidator = cryptoValidator;
     }
 
     public List<CryptoNormalizedRangeDto> getNormalizedRangesDesc() {
@@ -37,20 +39,13 @@ public class PriceService {
     }
 
     public CryptoStatsDto getStatsForSymbol(String symbol) {
-        SupportedCryptos crypto = validateSymbol(symbol);
+        SupportedCryptos crypto = cryptoValidator.validateSymbol(symbol);
         Double oldest = priceRepository.findFirstBySymbolOrderByDateTimeAsc(symbol).getPrice();
         Double newest = priceRepository.findFirstBySymbolOrderByDateTimeDesc(symbol).getPrice();
         Double min = priceRepository.findFirstBySymbolOrderByPriceAsc(symbol).getPrice();
         Double max = priceRepository.findFirstBySymbolOrderByPriceDesc(symbol).getPrice();
 
         return new CryptoStatsDto(crypto, oldest, newest, min, max);
-    }
-
-    private SupportedCryptos validateSymbol(String symbol) {
-        return Arrays.stream(SupportedCryptos.values())
-                .filter(s -> s.name().equalsIgnoreCase(symbol))
-                .findFirst()
-                .orElseThrow(() -> new UnsupportedCryptoException(symbol));
     }
 
     public CryptoNormalizedRangeDto getHighestNormalizedRangeForDate(String dateStr) {

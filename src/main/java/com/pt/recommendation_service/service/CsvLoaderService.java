@@ -2,6 +2,7 @@ package com.pt.recommendation_service.service;
 
 import com.pt.recommendation_service.entity.Price;
 import com.pt.recommendation_service.repository.PriceRepository;
+import com.pt.recommendation_service.validator.CryptoValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -21,10 +22,12 @@ public class CsvLoaderService implements ApplicationRunner {
 
     private final PriceRepository repository;
     private final PathMatchingResourcePatternResolver resolver;
+    private final CryptoValidator cryptoValidator;
 
-    public CsvLoaderService(PriceRepository repository, PathMatchingResourcePatternResolver resolver) {
+    public CsvLoaderService(PriceRepository repository, PathMatchingResourcePatternResolver resolver, CryptoValidator cryptoValidator) {
         this.repository = repository;
         this.resolver = resolver;
+        this.cryptoValidator = cryptoValidator;
     }
 
     @Override
@@ -47,15 +50,19 @@ public class CsvLoaderService implements ApplicationRunner {
                     if (first) { first = false; continue; }
                     try {
                         String[] parts = line.split(",");
-                        Price record = new Price();
+                        if (cryptoValidator.isSymbolValid(parts[1])) {
+                            Price record = new Price();
 
-                        long millis = Long.parseLong(parts[0]);
-                        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
-                        record.setDateTime(dateTime);
+                            long millis = Long.parseLong(parts[0]);
+                            LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+                            record.setDateTime(dateTime);
 
-                        record.setSymbol(parts[1]);
-                        record.setPrice(Double.parseDouble(parts[2]));
-                        repository.save(record);
+                            record.setSymbol(parts[1]);
+                            record.setPrice(Double.parseDouble(parts[2]));
+                            repository.save(record);
+                        } else {
+                            logger.warn("Crypto symbol {} is not supported in line {} in file {}", parts[1], lineNumber, fileName);
+                        }
                     } catch (Exception e) {
                         logger.error("Failed to parse line {} in file '{}': '{}'. Error: {}", lineNumber, fileName, line, e.getMessage());
                     }

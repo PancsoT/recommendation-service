@@ -2,6 +2,7 @@ package com.pt.recommendation_service.service;
 
 import com.pt.recommendation_service.entity.Price;
 import com.pt.recommendation_service.repository.PriceRepository;
+import com.pt.recommendation_service.validator.CryptoValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,13 +29,15 @@ class CsvLoaderServiceTest {
 
     private PriceRepository priceRepository;
     private PathMatchingResourcePatternResolver resolver;
+    private CryptoValidator cryptoValidator;
     private CsvLoaderService csvLoaderService;
 
     @BeforeEach
     void setUp() {
         priceRepository = mock(PriceRepository.class);
         resolver = mock(PathMatchingResourcePatternResolver.class);
-        csvLoaderService = new CsvLoaderService(priceRepository, resolver);
+        cryptoValidator = mock(CryptoValidator.class);
+        csvLoaderService = new CsvLoaderService(priceRepository, resolver, cryptoValidator);
     }
 
     @Test
@@ -49,6 +52,8 @@ class CsvLoaderServiceTest {
         when(resource.getInputStream()).thenReturn(inputStream);
 
         when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
+        when(cryptoValidator.isSymbolValid("BTC")).thenReturn(true);
+        when(cryptoValidator.isSymbolValid("ETH")).thenReturn(true);
 
         csvLoaderService.run(mock(ApplicationArguments.class));
 
@@ -68,10 +73,39 @@ class CsvLoaderServiceTest {
     }
 
     @Test
+    void run_onlyTheSupportedCryptosAreSaved() throws Exception {
+        String csvContent = """
+                timestamp,symbol,price
+                1640995200000,BTC,42000.0
+                1640998800000,NEW_STUFF,3200.0
+                """;
+        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
+        Resource resource = mock(Resource.class);
+        when(resource.getInputStream()).thenReturn(inputStream);
+
+        when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
+        when(cryptoValidator.isSymbolValid("BTC")).thenReturn(true);
+        when(cryptoValidator.isSymbolValid("NEW_STUFF")).thenReturn(false);
+
+        csvLoaderService.run(mock(ApplicationArguments.class));
+
+        ArgumentCaptor<Price> captor = ArgumentCaptor.forClass(Price.class);
+        verify(priceRepository, times(1)).save(captor.capture());
+        List<Price> savedPrices = captor.getAllValues();
+
+        Price first = savedPrices.getFirst();
+        assertEquals("BTC", first.getSymbol());
+        assertEquals(42000.0, first.getPrice());
+        assertEquals(LocalDateTime.of(2022, 1, 1, 0, 0), first.getDateTime());
+
+        assertEquals(1, savedPrices.size());
+    }
+
+    @Test
     void run_doesNotThrowExceptionIfNoCsvFilesFound() throws Exception {
         PriceRepository priceRepository = mock(PriceRepository.class);
         PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
-        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver, cryptoValidator);
 
         when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[0]);
 
@@ -82,17 +116,21 @@ class CsvLoaderServiceTest {
     void run_doesNotThrowExceptionOnMalformedLine() throws Exception {
         PriceRepository priceRepository = mock(PriceRepository.class);
         PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
-        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver, cryptoValidator);
 
-        String csvContent = "timestamp,symbol,price\n" +
-                "1640995200000,BTC,42000.0\n" +
-                "1640998800000,ETH,not_a_number\n" +
-                "1640999000000,ETH,3200.0\n";
+        String csvContent = """
+                timestamp,symbol,price
+                1640995200000,BTC,42000.0
+                1640998800000,ETH,not_a_number
+                1640999000000,ETH,3200.0
+                """;
         InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
         Resource resource = mock(Resource.class);
         when(resource.getInputStream()).thenReturn(inputStream);
         when(resource.getFilename()).thenReturn("test.csv");
         when(resolver.getResources("classpath:csv/*.csv")).thenReturn(new Resource[]{resource});
+        when(cryptoValidator.isSymbolValid("BTC")).thenReturn(true);
+        when(cryptoValidator.isSymbolValid("ETH")).thenReturn(true);
 
         assertDoesNotThrow(() -> service.run(mock(ApplicationArguments.class)));
 
@@ -103,7 +141,7 @@ class CsvLoaderServiceTest {
     void run_doesNotThrowExceptionOnFileProcessingError() throws Exception {
         PriceRepository priceRepository = mock(PriceRepository.class);
         PathMatchingResourcePatternResolver resolver = mock(PathMatchingResourcePatternResolver.class);
-        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver);
+        CsvLoaderService service = new CsvLoaderService(priceRepository, resolver, cryptoValidator);
 
         Resource resource = mock(Resource.class);
         when(resource.getInputStream()).thenThrow(new RuntimeException("File read error"));

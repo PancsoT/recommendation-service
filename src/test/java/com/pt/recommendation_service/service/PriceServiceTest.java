@@ -8,6 +8,7 @@ import com.pt.recommendation_service.exception.InvalidDateFormatException;
 import com.pt.recommendation_service.exception.NoPriceFoundForDateException;
 import com.pt.recommendation_service.exception.UnsupportedCryptoException;
 import com.pt.recommendation_service.repository.PriceRepository;
+import com.pt.recommendation_service.validator.CryptoValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,12 +30,16 @@ import static org.mockito.Mockito.when;
 class PriceServiceTest {
 
     private PriceRepository priceRepository;
+    private CryptoValidator cryptoValidator;
     private PriceService priceService;
 
     @BeforeEach
     void setUp() {
         priceRepository = mock(PriceRepository.class);
-        priceService = new PriceService(priceRepository);
+        cryptoValidator = mock(CryptoValidator.class);
+        priceService = new PriceService(priceRepository, cryptoValidator);
+        when(cryptoValidator.validateSymbol("BTC")).thenReturn(SupportedCryptos.BTC);
+        when(cryptoValidator.validateSymbol("ETH")).thenReturn(SupportedCryptos.ETH);
     }
 
     @Test
@@ -219,6 +224,7 @@ class PriceServiceTest {
         when(priceRepository.findFirstBySymbolOrderByDateTimeDesc(symbol)).thenReturn(newest);
         when(priceRepository.findFirstBySymbolOrderByPriceAsc(symbol)).thenReturn(min);
         when(priceRepository.findFirstBySymbolOrderByPriceDesc(symbol)).thenReturn(max);
+        when(cryptoValidator.validateSymbol("btc")).thenReturn(SupportedCryptos.BTC);
 
         CryptoStatsDto result = priceService.getStatsForSymbol(symbol);
 
@@ -246,6 +252,7 @@ class PriceServiceTest {
     void getStatsForSymbol_throwsException_whenSymbolIsNotSupported() {
         String symbol = "INVALID";
 
+        when(cryptoValidator.validateSymbol("INVALID")).thenThrow(new UnsupportedCryptoException("Crypto is not supported: " + symbol));
         assertThrows(UnsupportedCryptoException.class, () -> priceService.getStatsForSymbol(symbol));
     }
 }
